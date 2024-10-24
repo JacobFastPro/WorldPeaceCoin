@@ -126,18 +126,16 @@ async def check_and_reply_to_truth_terminal(client):
         latest_tweet = tweets.data[0]
         tweet_time = latest_tweet.created_at
         
-        # Check if tweet is from the last hour
-        if datetime.utcnow() - tweet_time < timedelta(hours=1):
-            print(f"Found recent tweet: {latest_tweet.text}")
-            reply_content = await generate_reply_content(latest_tweet.text)
+        print(f"Found recent tweet: {latest_tweet.text}")
+        reply_content = await generate_reply_content(latest_tweet.text)
             
-            if reply_content:
-                response = client.create_tweet(
-                    text=reply_content,
-                    in_reply_to_tweet_id=latest_tweet.id
-                )
-                print(f"✓ Reply posted: {reply_content}")
-                return response
+        if reply_content:
+            response = client.create_tweet(
+                text=reply_content,
+                in_reply_to_tweet_id=latest_tweet.id
+            )
+            print(f"✓ Reply posted: {reply_content}")
+            return response
         else:
             print("No new tweets in the last hour")
 
@@ -166,11 +164,9 @@ async def schedule_manager():
                 await asyncio.sleep(60)  # Wait to avoid double posting
             
             # Check truth_terminal at the start of every hour
-            if current_time.minute == 0:
-                print(f"\n=== Hourly Check ({current_time.strftime('%H:%M')}) ===")
-                await check_and_reply_to_truth_terminal(client)
+            await check_and_reply_to_truth_terminal(client)
             
-            await asyncio.sleep(30)  # Check every 30 seconds
+            await asyncio.sleep(900)  # Check every 300 seconds
             
         except Exception as e:
             print(f"Error in main loop: {e}")
