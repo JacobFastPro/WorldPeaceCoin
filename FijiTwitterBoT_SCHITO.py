@@ -3,7 +3,7 @@ import time
 import os
 import openai
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -125,17 +125,24 @@ async def check_and_reply_to_truth_terminal(client):
 
         latest_tweet = tweets.data[0]
         tweet_time = latest_tweet.created_at
+
+         # Make datetime.utcnow() offset-aware by setting the timezone to UTC
+        now_utc = datetime.utcnow().replace(tzinfo=timezone.utc)
+
+        print(now_utc)
         
-        print(f"Found recent tweet: {latest_tweet.text}")
-        reply_content = await generate_reply_content(latest_tweet.text)
+        # Check if tweet is from the last hour
+        if now_utc - tweet_time < timedelta(hours=1):
+            print(f"Found recent tweet: {latest_tweet.text}")
+            reply_content = await generate_reply_content(latest_tweet.text)
             
-        if reply_content:
-            response = client.create_tweet(
-                text=reply_content,
-                in_reply_to_tweet_id=latest_tweet.id
-            )
-            print(f"✓ Reply posted: {reply_content}")
-            return response
+            if reply_content:
+                response = client.create_tweet(
+                    text=reply_content,
+                    in_reply_to_tweet_id=latest_tweet.id
+                )
+                print(f"✓ Reply posted: {reply_content}")
+                return response
         else:
             print("No new tweets in the last hour")
 
@@ -154,8 +161,8 @@ async def schedule_manager():
         try:
             current_time = datetime.now()
             
-            # Tweet every 30 minutes
-            if current_time.minute in [0, 30]:
+            # Tweet every 15 minutes
+            if current_time.minute in [0,15,45,30]:
                 print(f"\n=== Scheduled Tweet Time ({current_time.strftime('%H:%M')}) ===")
                 content = await generate_tweet_content()
                 if content:
@@ -163,10 +170,12 @@ async def schedule_manager():
                     print(f"✓ Posted tweet: {content}")
                 await asyncio.sleep(60)  # Wait to avoid double posting
             
-            # Check truth_terminal at the start of every hour
-            await check_and_reply_to_truth_terminal(client)
-            
-            await asyncio.sleep(900)  # Check every 300 seconds
+            # Check truth_terminal evry 30 minutes
+            if current_time.minute in [5,35]:
+              print(f"\n=== Hourly Check ({current_time.strftime('%H:%M')}) ===")
+              await check_and_reply_to_truth_terminal(client)
+          
+            await asyncio.sleep(30)  # Check every 30 seconds
             
         except Exception as e:
             print(f"Error in main loop: {e}")
